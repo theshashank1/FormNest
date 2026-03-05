@@ -46,6 +46,7 @@ class Settings(BaseSettings):
     HOST: str = "0.0.0.0"
     PORT: int = 8001
     CLIENT_URL: str = "http://localhost:5173"
+    API_URL: str = "http://localhost:8001"  # Public-facing API base URL
 
     # --- Database ---
     DATABASE_URL: str | None = None

@@ -71,7 +71,19 @@ class SubmissionService:
         if not project:
             raise FormNotActiveError("Project not found")
 
-        # 3. Check plan limits
+        # 3. Origin validation (only when allowed_origins is configured)
+        request_origin = metadata.get("_request_origin")
+        if request_origin and form.allowed_origins:
+            allowed = form.allowed_origins if isinstance(form.allowed_origins, list) else []
+            if allowed and request_origin not in allowed:
+                from server.exceptions import ForbiddenError
+                raise ForbiddenError(
+                    f"Origin '{request_origin}' is not allowed to submit to this form"
+                )
+        # Remove the internal _request_origin key before storing metadata
+        metadata.pop("_request_origin", None)
+
+        # 4. Check plan limits
         if project.submission_used_this_month >= project.submission_limit_monthly:
             raise PlanLimitError(
                 f"Monthly submission limit ({project.submission_limit_monthly}) reached"
