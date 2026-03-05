@@ -688,26 +688,53 @@ Each form creates a PostgreSQL table. At scale (10K forms), PostgreSQL handles t
 
 ### Vision
 
-When FormNest reaches ₹50K+ MRR (Year 1–2), a **phased bridge integration** with TREEEX-WBSP creates a unified "Growth Infrastructure Platform":
+FormNest does not remain a standalone product forever. At merger, **WBSP becomes the single application shell** and FormNest becomes a module inside it. Users who only want forms never need to touch WhatsApp — but users who want the full growth loop get it in one place.
 
 ```
-Form collects lead → WhatsApp campaign nurtures → CRM tracks lifecycle
-Everything under one subscription, one dashboard, one billing
+WBSP App (single login)
+  ├── Forms Module     ← FormNest engine, available to ALL users
+  ├── WhatsApp Module  ← BSP features, optional subscription
+  ├── Blog Module      ← FormNest CMS
+  └── CRM / Contacts   ← Unified from both modules
+```
+
+**Key principle: WhatsApp BSP is optional.** A user can sign up on the WBSP app, activate only the Forms module, and use it indefinitely without a WhatsApp subscription. The WhatsApp module is an upgrade, not a prerequisite.
+
+### Terminology Change at Merger
+
+| Before Merger | After Merger | Notes |
+|---|---|---|
+| FormNest `project` | WBSP `workspace` | `projects` table migrated to `workspaces` |
+| `app.formnest.in` | `app.wbsp.in` (or new brand) | FormNest app domain retired |
+| `formnest.in/f/{key}` | `app.wbsp.in/f/{key}` | Standalone form URLs redirect |
+| FormNest billing | WBSP module billing | Forms module priced separately |
+| FormNest login | WBSP login | Same Supabase auth, no re-login |
+
+### Why `workspace` Wins (Not `project`)
+
+WBSP's `workspace` is the more powerful concept — it already holds contacts, campaigns, channels, and team members. FormNest's `project` is a subset of what a workspace represents. At merger, a user's FormNest project becomes a workspace in WBSP with the Forms module activated.
+
+```
+Migration (one-time):
+  FormNest projects  →  WBSP workspaces (new rows or 1:1 map)
+  project_members    →  workspace_members (identical RBAC, direct copy)
+  forms              →  workspace.forms (scoped to workspace_id)
+  form_submission_index → workspace.contacts (email/phone dedup + merge)
 ```
 
 ### Why Merger is Architecturally Easy
 
-FormNest is intentionally designed with WBSP schema patterns in mind:
+FormNest is intentionally pre-aligned with WBSP's schema:
 
-| FormNest Concept | WBSP Equivalent | Merger Action |
+| FormNest | WBSP | Merger Action |
 |---|---|---|
-| `projects` | `workspaces` | Add `wbsp_workspace_id` FK — already stubbed |
-| `form_submission_index` | `contacts` | BridgeService syncs email/phone to WBSP contacts |
+| `projects` | `workspaces` | Migrate — `wbsp_workspace_id` stub already in schema |
+| `project_members` | `workspace_members` | Direct copy — identical RBAC model |
+| `form_submission_index` | `contacts` | BridgeService dedup-merge by email/phone |
 | `tags` | `tags` | Identical schema — shared tag service |
-| `project_members` | `workspace_members` | Identical RBAC — direct merge |
-| Supabase auth | Supabase auth | **Already shared** — same project |
-| Redis queues | Redis queues | **Same infra** — separate queue keys |
-| FastAPI + SQLAlchemy | FastAPI + SQLAlchemy | **Same framework stack** |
+| Supabase auth | Supabase auth | **Already shared** — same project, same UUIDs |
+| Redis queues | Redis queues | **Same infra** — separate `fn:` vs `wbsp:` key prefixes |
+| FastAPI + SQLAlchemy | FastAPI + SQLAlchemy | **Same stack** — shared service layer |
 
 ### Three-Phase Merger Plan
 
@@ -715,33 +742,45 @@ FormNest is intentionally designed with WBSP schema patterns in mind:
 ```
 FormNest Submission Worker
   → BridgeService.sync_contact(submission)
-    → POST /api/v1/workspaces/{wbsp_id}/contacts  (WBSP internal API)
+    → POST /internal/workspaces/{wbsp_id}/contacts
       → if contact exists (by phone/email) → PATCH (merge fields)
       → if new → CREATE with tag "formnest_lead"
     → Store wbsp_contact_id in form_submission_index
-  → New dashboard tab: "WhatsApp this lead" button (opens WBSP conversation)
+  → "WhatsApp this lead" button appears in FormNest dashboard
+    → opens WBSP conversation for that contact (deep link)
 ```
 
-**Phase B — Unified Workspace (Month 18–24)**
+**Phase B — WBSP as Single Shell (Month 18–24)**
 ```
-User creates one Workspace
-  → Form Builder tab (FormNest engine)
-  → WhatsApp tab (WBSP channels + templates)
-  → CRM tab (unified contacts from both)
-  → Billing: one subscription covers both modules
+User logs in to app.wbsp.in
+  → Sees "Forms" tab (even without WhatsApp subscription)
+  → Forms tab = full FormNest engine embedded as module
+  → workspace_id = the identifier for all form data
+  → WhatsApp tab = only visible if BSP subscription is active
+  → CRM tab = unified contacts from forms + WhatsApp
+  → Single billing: pay for Forms module, WhatsApp module, or both
 ```
 
 **Phase C — Full Growth Platform (Year 2+)**
 ```
-Lead capture → Instant WhatsApp → Automated campaign → Conversion tracking
-Programmatic SEO → Blog → Form → WhatsApp → Close
+Programmatic SEO page → FormNest form → auto WhatsApp follow-up → campaign → conversion
+Single funnel analytics: page views → form opens → submissions → WhatsApp replies → closes
 ```
+
+### Module Subscription Model (Post-Merger)
+
+| Module | Price | Includes |
+|---|---|---|
+| **Forms Only** | ₹449–₹1,999/mo | Form builder, submissions, blog, analytics |
+| **WhatsApp Only** | Existing WBSP pricing | Campaigns, inbox, contacts |
+| **Forms + WhatsApp Bundle** | ₹2,499/mo | Both modules, unified CRM |
+| **Enterprise** | Custom | White-label, dedicated support, custom domain |
 
 ### Schema Pre-Alignment (Already in FormNest from Day 1)
 
 ```sql
 -- On projects table (nullable, unused until merger)
-wbsp_workspace_id  UUID NULL
+wbsp_workspace_id  UUID NULL          -- mapped at migration time
 wbsp_sync_enabled  BOOLEAN DEFAULT FALSE
 
 -- On form_submission_index (nullable, populated by BridgeService)
@@ -835,6 +874,60 @@ wbsp_synced_at    TIMESTAMPTZ NULL
 - ✅ Zero additional cost — runs in same DB
 - ✅ Sufficient for < 10,000 posts per project
 - ⚠️ Migrate to Typesense/Meilisearch at scale (> 100K posts workspace-wide)
+
+---
+
+### ADR-008: WBSP App as the Single Shell — Forms Module Usable Without WhatsApp
+
+**Context:** At merger, two options exist:
+1. Build a new unified brand/app (FormNest + WBSP → "GrowthPlatform")
+2. Absorb FormNest into the WBSP app as a module
+
+**Decision:** **WBSP app becomes the single shell.** FormNest is not a separate product after merger — it becomes the **Forms module** inside the WBSP application. The `app.formnest.in` dashboard is retired; all users log in via the WBSP app.
+
+**Critical sub-decision:** A user who has **no WhatsApp BSP subscription** can still sign up on the WBSP app, activate the Forms module only, and use it fully. The WhatsApp module is an optional upgrade — it is never a prerequisite for using forms.
+
+```
+WBSP App login (app.wbsp.in)
+  ├── Forms Module     ← available to ALL users, no WhatsApp required
+  ├── Blog Module      ← available to ALL users
+  ├── CRM / Contacts   ← unified, available to ALL users
+  └── WhatsApp Module  ← optional add-on, requires BSP subscription
+```
+
+**`workspace_id` as the Unified Identifier:**
+
+After merger, `workspace_id` (from WBSP) replaces `project_id` (from FormNest) as the primary tenant identifier everywhere. The migration is:
+```
+FormNest projects table  →  WBSP workspaces table (1:1 row migration)
+forms.project_id         →  forms.workspace_id
+form_submission_index.project_id → form_submission_index.workspace_id
+```
+
+The `wbsp_workspace_id` stub column in FormNest's `projects` table (already present from Day 1) makes this a column rename + FK swap, not a data migration.
+
+**User Migration Flow:**
+```
+Existing FormNest user receives email:
+  "FormNest is now part of [WBSP brand]. Your account, forms, and leads
+   have been moved. Log in at app.wbsp.in with your existing credentials."
+
+On first WBSP login:
+  → Supabase auth is already shared → no new password
+  → Their workspace has Forms module pre-activated
+  → All their forms, submissions, blog posts are intact under workspace_id
+  → WhatsApp module shows as available upgrade (not forced)
+```
+
+**Consequences:**
+- ✅ One codebase, one login, one billing system after merger
+- ✅ FormNest users never need to care about WhatsApp — zero disruption
+- ✅ `workspace_id` becomes the clean universal tenant key — no dual-ID complexity
+- ✅ WBSP gains a forms product with zero development cost (reuse FormNest engine)
+- ✅ `formnest.in` domain can be kept as a marketing/redirect site pointing to WBSP
+- ⚠️ FormNest brand equity is absorbed — mitigate by keeping `formnest.in` as redirect + SEO asset
+- ⚠️ WBSP app must handle "Forms-only" users gracefully — WhatsApp UI must never feel like a blocker
+- ⚠️ Billing split (Forms module vs WhatsApp module) must be clearly communicated at migration
 
 ---
 

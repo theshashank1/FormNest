@@ -830,37 +830,99 @@ CREATE INDEX ON fn_proj_a1b2c3d4_form_e5f6g7h8 (submission_id);
 
 ## 🔗 WBSP Merger — Schema Bridge Summary
 
-FormNest schema is pre-designed to minimise merger migration work:
+> **Key Decision (ADR-008):** At merger, WBSP becomes the single application shell. FormNest becomes the **Forms module** inside the WBSP app. Users without a WhatsApp BSP subscription can still log in to the WBSP app and use the Forms module fully. `workspace_id` replaces `project_id` as the universal tenant identifier.
+
+### Identifier Migration: `project_id` → `workspace_id`
+
+The `projects` table is retired at merger. All FormNest tables that reference `project_id` are updated to reference `workspace_id` (WBSP's `workspaces.id`). The `wbsp_workspace_id` stub column (already present in `projects`) makes this a FK swap, not a data migration.
+
+```sql
+-- Phase B migration (run once at merger):
+
+-- 1. Migrate projects → workspaces (WBSP handles workspace creation)
+--    Each FormNest project gets a new or mapped WBSP workspace row.
+--    The wbsp_workspace_id stub is already populated by BridgeService in Phase A.
+
+-- 2. Rename the FK column on all FormNest tables:
+ALTER TABLE forms
+  RENAME COLUMN project_id TO workspace_id;
+
+ALTER TABLE form_submission_index
+  RENAME COLUMN project_id TO workspace_id;
+
+ALTER TABLE ghost_leads
+  RENAME COLUMN project_id TO workspace_id;
+
+ALTER TABLE blog_posts
+  RENAME COLUMN project_id TO workspace_id;
+
+ALTER TABLE tags
+  RENAME COLUMN project_id TO workspace_id;
+
+ALTER TABLE webhooks
+  RENAME COLUMN project_id TO workspace_id;
+
+ALTER TABLE project_integrations
+  RENAME COLUMN project_id TO workspace_id;
+
+ALTER TABLE analytics_snapshots
+  RENAME COLUMN project_id TO workspace_id;
+
+ALTER TABLE media_files
+  RENAME COLUMN project_id TO workspace_id;
+
+ALTER TABLE billing_subscriptions
+  RENAME COLUMN project_id TO workspace_id;
+
+-- 3. Add workspace_module_flags to WBSP workspaces table:
+ALTER TABLE workspaces
+  ADD COLUMN forms_module_enabled  BOOLEAN NOT NULL DEFAULT FALSE,
+  ADD COLUMN whatsapp_module_enabled BOOLEAN NOT NULL DEFAULT FALSE;
+
+-- Migrated FormNest workspaces get forms_module_enabled = TRUE automatically.
+-- whatsapp_module_enabled = TRUE only if BSP subscription is active.
+```
+
+### Module Flag: Who Sees What
+
+```
+workspace.forms_module_enabled = TRUE
+  → User can access Forms, Blog, Submissions, Analytics in WBSP app
+  → No WhatsApp requirement
+
+workspace.whatsapp_module_enabled = TRUE
+  → User can access WhatsApp channels, campaigns, inbox
+  → Requires BSP subscription
+
+Both TRUE
+  → Full growth loop: form submissions auto-sync to contacts, WhatsApp follow-up available
+```
+
+### Pre-Merger Table Map
 
 | FormNest Table | WBSP Table | Merger Action |
 |---|---|---|
 | `users` | `users` | **No change** — identical schema, same Supabase UUIDs |
-| `projects` | `workspaces` | Populate `projects.wbsp_workspace_id` stub — map 1:1 |
-| `project_members` | `workspace_members` | **No change** — identical RBAC model |
+| `projects` | `workspaces` | **Retired** — rows migrated to `workspaces`, `project_id` → `workspace_id` everywhere |
+| `project_members` | `workspace_members` | **No change** — identical RBAC model, direct copy |
 | `tags` | `tags` | **No change** — identical schema → shared tag service |
-| `form_submission_index` | `contacts` | `BridgeService` syncs `email`/`phone` → WBSP contacts |
+| `form_submission_index` | contacts (partial) | `BridgeService` dedup-merges `email`/`phone` → WBSP contacts |
 | `submission_tag_links` | contact tag M2M | Merge via shared tag IDs |
-| `project_integrations` (type=wbsp) | — | Native WBSP API calls |
-| Redis queues | Redis queues | Same instance — separate queue key namespaces |
-| Supabase auth | Supabase auth | **Already shared** — same project, same UUIDs |
+| `project_integrations` | workspace_integrations | Rename + add `wbsp` integration type |
+| Redis queues | Redis queues | Same instance — `fn:` and `wbsp:` key prefixes remain |
+| Supabase auth | Supabase auth | **Already shared** — same project, same UUIDs, no re-login |
 
-**New bridge table added at merger (in WBSP codebase):**
+### `workspaces` Module Flags (Added at Merger in WBSP)
 
 ```sql
--- Surfaces FormNest form data inside WBSP conversations/contact profiles
-CREATE TABLE formnest_contact_sources (
-    id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    wbsp_contact_id   UUID NOT NULL REFERENCES contacts(id) ON DELETE CASCADE,
-    fn_submission_id  UUID NOT NULL,    -- form_submission_index.id
-    fn_form_id        UUID NOT NULL,    -- forms.id
-    fn_project_id     UUID NOT NULL,    -- projects.id
-    fn_form_name      VARCHAR(255),     -- denormalised for display
-    source_data       JSONB NOT NULL,   -- snapshot of submission data_snapshot
-    synced_at         TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
+-- These columns are added to WBSP's workspaces table at merger.
+-- FormNest-migrated workspaces: forms_module_enabled = TRUE, whatsapp = FALSE by default.
+-- Existing WBSP workspaces: whatsapp_module_enabled = TRUE, forms = FALSE (upgrade prompt).
 
-CREATE INDEX ON formnest_contact_sources(wbsp_contact_id);
-CREATE INDEX ON formnest_contact_sources(fn_submission_id);
+ALTER TABLE workspaces ADD COLUMN forms_module_enabled     BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE workspaces ADD COLUMN whatsapp_module_enabled  BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE workspaces ADD COLUMN forms_migrated_at        TIMESTAMPTZ NULL;
+  -- ^ set when FormNest project migration is complete for this workspace
 ```
 
 ---

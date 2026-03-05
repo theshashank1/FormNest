@@ -344,42 +344,68 @@ formnest/
 
 ---
 
-## 7. Phase 5 — Unified Platform (Months 18–24)
+## 7. Phase 5 — WBSP as Single Shell (Months 18–24)
 
-**Goal:** Single product. One workspace. One subscription. FormNest + WBSP = Growth Platform.
+**Goal:** FormNest ceases to be a standalone app. The WBSP app becomes the single login point. Forms is a module — usable with or without WhatsApp. `workspace_id` is the universal tenant identifier.
 
-### Unified Workspace
-- [ ] Single login → see both FormNest projects and WBSP workspaces
-- [ ] Projects and Workspaces merged into unified "Workspace" concept
-- [ ] Shared navigation: Forms | WhatsApp | Blog | CRM | Analytics
+> **ADR-008 in action:** Users without a WhatsApp BSP subscription still get full access to the Forms module inside the WBSP app. WhatsApp is an optional upgrade, never a prerequisite.
+
+### app.formnest.in Retirement
+- [ ] `app.formnest.in` redirects to `app.wbsp.in` (301 permanent redirect)
+- [ ] `formnest.in` homepage stays live as SEO/marketing landing page → CTA links to WBSP signup
+- [ ] `cdn.formnest.in/widget.js` stays live (no breaking change for existing embeds)
+- [ ] `{slug}.formnest.in` blog URLs redirect to `{slug}.wbsp.in` or custom domain
+
+### User Migration
+- [ ] Migration email sent to all FormNest users: "Your account is moving to [WBSP app]"
+- [ ] Supabase auth is already shared → **no password reset, no new signup required**
+- [ ] On first WBSP login, migrated users see Forms module already activated
+- [ ] WhatsApp module shown as available upgrade (with clear pricing), never forced
+- [ ] All forms, submissions, blog posts intact under their new `workspace_id`
+
+### `project_id` → `workspace_id` Migration
+- [ ] `wbsp_workspace_id` stub (already in `projects` table from Day 1) populated for all projects via BridgeService during Phase 4
+- [ ] Migration script runs: `ALTER TABLE forms RENAME COLUMN project_id TO workspace_id` (and all other tables)
+- [ ] `projects` table archived (retained read-only for 90 days, then dropped)
+- [ ] All API endpoints updated: `/api/v1/projects/{id}/...` → `/api/v1/workspaces/{id}/...` with 301 redirects on old paths
+
+### Module Flags in WBSP
+- [ ] `workspaces.forms_module_enabled` column added to WBSP
+- [ ] `workspaces.whatsapp_module_enabled` column added to WBSP
+- [ ] Migrated FormNest workspaces: `forms_module_enabled = TRUE`, `whatsapp_module_enabled = FALSE`
+- [ ] Existing WBSP workspaces: `whatsapp_module_enabled = TRUE`, `forms_module_enabled = FALSE` (upgrade prompt shown)
+- [ ] WBSP app nav hides/shows tabs based on module flags — no broken tabs for Forms-only users
 
 ### Unified CRM
-- [ ] Contacts table: sourced from FormNest submissions + WBSP conversations
-- [ ] Contact timeline: "Filled contact form" → "WhatsApp conversation started" → "Converted"
-- [ ] Unified tagging across both systems
-- [ ] Lead scoring (Phase 5): score based on form fields + WhatsApp engagement
+- [ ] Contacts sourced from form submissions + WhatsApp conversations
+- [ ] Contact timeline: "Filled contact form → WhatsApp conversation started → Converted"
+- [ ] Unified tagging across both modules
+- [ ] Lead scoring: form fields + WhatsApp engagement signals
 
 ### Full Growth Loop
-- [ ] Programmatic SEO page → embedded FormNest form → auto WhatsApp follow-up → campaign → conversion tracking
+- [ ] Programmatic SEO → FormNest form → auto WhatsApp follow-up → campaign → conversion tracking
 - [ ] Funnel analytics: page views → form opens → submissions → WhatsApp replies → conversions
 
-### Unified Billing
+### Module-Based Billing
 - [ ] Single Razorpay subscription per workspace
-- [ ] Module-based pricing: Forms module + WhatsApp module
-- [ ] Annual billing discount (20%)
-- [ ] Enterprise: custom pricing, dedicated support
+- [ ] **Forms module only:** ₹449–₹1,999/mo (same as current FormNest plans)
+- [ ] **WhatsApp module only:** existing WBSP pricing
+- [ ] **Forms + WhatsApp bundle:** ₹2,499/mo (discounted)
+- [ ] Annual discount: 20% off any plan
+- [ ] Enterprise: custom pricing, white-label, dedicated support
 
 ### Infrastructure Consolidation
-- [ ] Both products on Azure Container Apps (same infra as WBSP scale plan)
-- [ ] Shared Redis namespace (separated by `fn:` and `wbsp:` prefixes)
+- [ ] Both services on Azure Container Apps (same infra as WBSP scale plan)
+- [ ] Shared Redis namespace (`fn:` and `wbsp:` key prefixes unchanged)
 - [ ] Shared PostgreSQL cluster (Neon Business or Azure Flexible Server)
-- [ ] Single Supabase project (already shared from Day 1)
+- [ ] Single Supabase project (already shared from Day 1 — no action needed)
 
 ### ✅ Phase 5 Done When
-- Unified product shipped at `app.growthplatform.in` (or new brand)
+- `app.formnest.in` fully redirects to WBSP app
+- 100% of FormNest users migrated to WBSP with zero data loss
+- Forms-only users confirmed working smoothly (no WhatsApp friction)
 - ₹1L MRR (combined)
-- At least 20 customers on unified billing
-- Full merger docs written and development team onboarded
+- At least 20 customers on bundle billing
 
 ---
 
