@@ -1,0 +1,40 @@
+# =============================================================================
+# FormNest — Docker Compose (Development)
+#
+# Two containers: API + Workers (same as WBSP pattern).
+# Database and Redis are external (Neon.tech + Upstash).
+# =============================================================================
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: api
+    ports:
+      - "8001:8001"
+    env_file:
+      - .env
+    volumes:
+      - ./server:/app/server
+      - ./run.py:/app/run.py
+    command: >
+      uv run uvicorn server.main:app
+      --host 0.0.0.0 --port 8001
+      --reload --reload-dir server
+    restart: unless-stopped
+
+  workers:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: workers
+    env_file:
+      - .env
+    volumes:
+      - ./server:/app/server
+      - ./run_workers.py:/app/run_workers.py
+    command: uv run python run_workers.py
+    restart: unless-stopped
+    depends_on:
+      - api
