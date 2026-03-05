@@ -11,6 +11,7 @@ import logging
 import uuid
 
 from fastapi import Depends, Header, Request
+from typing import Any
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -193,7 +194,7 @@ _ROLE_HIERARCHY = {
 }
 
 
-def require_role(min_role: MemberRole):
+def require_role(min_role: MemberRole) -> Any:
     """
     Dependency factory that enforces a minimum role.
 

@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import Boolean, ForeignKey, Index, Integer, String, Text, Uuid
 from sqlalchemy.dialects.postgresql import JSONB
@@ -67,7 +67,7 @@ class BillingEvent(Base):
         ForeignKey("projects.id", ondelete="SET NULL"), nullable=True
     )
     processed: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
-    raw_payload: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    raw_payload: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         nullable=False, default=lambda: __import__("server.models.base", fromlist=["utc_now"]).utc_now()

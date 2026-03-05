@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import Boolean, ForeignKey, Index, Integer, String, Text, Uuid, text
 from sqlalchemy.dialects.postgresql import JSONB
@@ -127,7 +127,7 @@ class Project(TimestampMixin, SoftDeleteMixin, Base):
     )
 
     # Settings
-    settings: Mapped[dict] = mapped_column(
+    settings: Mapped[dict[str, Any]] = mapped_column(
         JSONB, server_default=text("'{}'::jsonb"), nullable=False
     )
     custom_domain: Mapped[str | None] = mapped_column(String(255), nullable=True)
@@ -178,7 +178,7 @@ class Project(TimestampMixin, SoftDeleteMixin, Base):
         Index("idx_project_active", "deleted_at"),
     )
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: Any) -> None:
         if "slug" not in kwargs and "name" in kwargs:
             kwargs["slug"] = generate_slug(kwargs["name"])
         super().__init__(**kwargs)
@@ -213,7 +213,7 @@ class ProjectMember(TimestampMixin, Base):
     )
     invited_at: Mapped[datetime | None] = mapped_column(nullable=True)
     joined_at: Mapped[datetime | None] = mapped_column(nullable=True)
-    permissions: Mapped[dict] = mapped_column(
+    permissions: Mapped[dict[str, Any]] = mapped_column(
         JSONB, server_default=text("'{}'::jsonb"), nullable=False
     )
 

@@ -38,11 +38,11 @@ class SubmissionResponse(BaseModel):
     name: str | None = None
     email: str | None = None  # Masked in list view
     phone: str | None = None  # Masked in list view
-    data_snapshot: dict
+    data_snapshot: dict[str, Any]
     source_url: str | None = None
     referrer: str | None = None
     device: str | None = None
-    utm_data: dict | None = None
+    utm_data: dict[str, Any] | None = None
     submitted_at: datetime
     reviewed_at: datetime | None = None
 

@@ -43,7 +43,7 @@ async def submit_form(
     request: SubmitFormRequest,
     http_request: Request,
     db: AsyncSession = Depends(get_db_session),
-):
+) -> SubmitFormResponse:
     """
     Public form submission endpoint.
 
@@ -88,6 +88,7 @@ async def submit_form(
         # so we pass the origin through metadata.
         if request.metadata is None:
             request = request.model_copy(update={"metadata": {}})
+        assert request.metadata is not None
         request.metadata["_request_origin"] = origin
 
     # Process submission
@@ -123,7 +124,7 @@ async def list_submissions(
     project: Project = Depends(get_project),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db_session),
-):
+) -> SubmissionListResponse:
     """List form submissions with pagination."""
     # Build query
     query = (
@@ -174,7 +175,7 @@ async def get_submission_detail(
     project: Project = Depends(get_project),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db_session),
-):
+) -> SubmissionDetailResponse:
     """Get full submission detail including data from dynamic table."""
     result = await db.execute(
         select(FormSubmissionIndex).where(
@@ -189,7 +190,11 @@ async def get_submission_detail(
 
     # Mark as reviewed if first time
     if not submission.reviewed_at:
-        from server.models.base import utc_now
+        from datetime import datetime, timezone
+        
+        def utc_now() -> datetime:
+            return datetime.now(timezone.utc)
+            
         submission.reviewed_at = utc_now()
         await db.flush()
 

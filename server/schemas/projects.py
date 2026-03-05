@@ -5,6 +5,7 @@ FormNest — Project Schemas
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Any
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -19,7 +20,7 @@ class CreateProjectRequest(BaseModel):
 class UpdateProjectRequest(BaseModel):
     name: str | None = Field(None, max_length=255)
     notification_email: str | None = None
-    settings: dict | None = None
+    settings: dict[str, Any] | None = None
     custom_domain: str | None = None
 
 

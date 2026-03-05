@@ -8,6 +8,8 @@ Pattern mirrors TREEEX-WBSP server/main.py.
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 
+from typing import Any
+
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
@@ -24,7 +26,7 @@ from server.exceptions import FormNestBaseError
 # =============================================================================
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(app: FastAPI) -> Any:
     """Application startup and shutdown events."""
     # Startup
     from server.core.db import init_db
@@ -79,7 +81,7 @@ app.add_middleware(
 # =============================================================================
 
 @app.exception_handler(FormNestBaseError)
-async def formnest_exception_handler(request: Request, exc: FormNestBaseError):
+async def formnest_exception_handler(request: Request, exc: FormNestBaseError) -> JSONResponse:
     """Handle custom FormNest exceptions with standardised response format."""
     return JSONResponse(
         status_code=exc.status_code,
@@ -88,7 +90,7 @@ async def formnest_exception_handler(request: Request, exc: FormNestBaseError):
 
 
 @app.exception_handler(RequestValidationError)
-async def validation_exception_handler(request: Request, exc: RequestValidationError):
+async def validation_exception_handler(request: Request, exc: RequestValidationError) -> JSONResponse:
     """Handle Pydantic validation errors with detailed field information."""
     errors = []
     for error in exc.errors():
@@ -109,7 +111,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 
 
 @app.exception_handler(IntegrityError)
-async def database_integrity_exception_handler(request: Request, exc: IntegrityError):
+async def database_integrity_exception_handler(request: Request, exc: IntegrityError) -> JSONResponse:
     """Handle database integrity constraint violations."""
     log_exception("db.integrity_error", exc)
 
@@ -127,7 +129,7 @@ async def database_integrity_exception_handler(request: Request, exc: IntegrityE
 
 
 @app.exception_handler(OperationalError)
-async def database_operational_exception_handler(request: Request, exc: OperationalError):
+async def database_operational_exception_handler(request: Request, exc: OperationalError) -> JSONResponse:
     """Handle database operational errors."""
     log_exception("db.operational_error", exc)
     return JSONResponse(
@@ -140,7 +142,7 @@ async def database_operational_exception_handler(request: Request, exc: Operatio
 
 
 @app.exception_handler(Exception)
-async def global_exception_handler(request: Request, exc: Exception):
+async def global_exception_handler(request: Request, exc: Exception) -> JSONResponse:
     """Catch-all handler for unhandled exceptions."""
     log_exception("unhandled_error", exc)
     return JSONResponse(
@@ -169,7 +171,7 @@ app.include_router(public_router)
 # =============================================================================
 
 @app.get("/health", tags=["Health"])
-async def health_check():
+async def health_check() -> dict[str, Any]:
     """Health check endpoint. Returns 200 if running."""
     return {
         "status": "ok",
@@ -179,7 +181,7 @@ async def health_check():
 
 
 @app.get("/ready", tags=["Health"])
-async def readiness_check():
+async def readiness_check() -> JSONResponse:
     """Readiness check — verifies DB and Redis connectivity."""
     checks = {"api": "ok"}
 

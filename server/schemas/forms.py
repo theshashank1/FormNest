@@ -31,11 +31,11 @@ class CreateFormRequest(BaseModel):
     name: str = Field(min_length=1, max_length=255)
     schema_fields: list[FormFieldDefinition] = Field(alias="schema")
     form_type: str = "single_page"
-    steps_config: dict | None = None
+    steps_config: dict[str, Any] | None = None
     success_message: str | None = None
     redirect_url: str | None = None
-    styling: dict | None = None
-    spam_protection: dict | None = None
+    styling: dict[str, Any] | None = None
+    spam_protection: dict[str, Any] | None = None
 
     model_config = {"populate_by_name": True}
 
@@ -44,12 +44,12 @@ class UpdateFormRequest(BaseModel):
     name: str | None = Field(None, max_length=255)
     schema_fields: list[FormFieldDefinition] | None = Field(None, alias="schema")
     form_type: str | None = None
-    steps_config: dict | None = None
+    steps_config: dict[str, Any] | None = None
     success_message: str | None = None
     redirect_url: str | None = None
     is_active: bool | None = None
-    styling: dict | None = None
-    spam_protection: dict | None = None
+    styling: dict[str, Any] | None = None
+    spam_protection: dict[str, Any] | None = None
     allowed_origins: list[str] | None = None
 
     model_config = {"populate_by_name": True}
@@ -62,18 +62,18 @@ class FormResponse(BaseModel):
     project_id: UUID
     name: str
     form_key: str
-    schema_fields: list[dict] = Field(alias="schema")
+    schema_fields: list[dict[str, Any]] = Field(alias="schema")
     schema_version: int
     form_type: str
-    steps_config: dict | None = None
+    steps_config: dict[str, Any] | None = None
     table_name: str
     table_created: bool
     is_active: bool
     submission_count: int
     success_message: str | None = None
     redirect_url: str | None = None
-    spam_protection: dict
-    styling: dict | None = None
+    spam_protection: dict[str, Any]
+    styling: dict[str, Any] | None = None
     partial_save_enabled: bool
     created_at: datetime
     updated_at: datetime

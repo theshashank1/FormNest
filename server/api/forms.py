@@ -36,7 +36,7 @@ async def create_form(
     project: Project = Depends(get_project),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db_session),
-):
+) -> FormResponse:
     """Create a new form and auto-provision its database table."""
     # Check form limit
     result = await db.execute(
@@ -103,7 +103,7 @@ async def list_forms(
     project_id: uuid.UUID,
     project: Project = Depends(get_project),
     db: AsyncSession = Depends(get_db_session),
-):
+) -> FormListResponse:
     """List all forms in a project."""
     result = await db.execute(
         select(Form).where(
@@ -124,7 +124,7 @@ async def get_form(
     form_id: uuid.UUID,
     project: Project = Depends(get_project),
     db: AsyncSession = Depends(get_db_session),
-):
+) -> FormResponse:
     """Get form schema and details."""
     result = await db.execute(
         select(Form).where(
@@ -146,7 +146,7 @@ async def delete_form(
     project: Project = Depends(get_project),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db_session),
-):
+) -> None:
     """
     Soft-delete a form.
 
@@ -154,7 +154,9 @@ async def delete_form(
     accepts new submissions. The underlying data table is preserved for audit
     purposes and can be recovered by support if needed within 30 days.
     """
-    from server.models.base import utc_now
+    from datetime import datetime, timezone
+    def utc_now() -> datetime:
+        return datetime.now(timezone.utc)
 
     result = await db.execute(
         select(Form).where(
@@ -172,13 +174,14 @@ async def delete_form(
     await db.flush()
     logger.info(f"Form soft-deleted: {form.name} ({form.form_key}) by user {current_user.id}")
 
+@router.patch("/{form_id}", response_model=FormResponse)
 async def update_form(
     form_id: uuid.UUID,
     request: UpdateFormRequest,
     project: Project = Depends(get_project),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db_session),
-):
+) -> FormResponse:
     """Update form schema or settings."""
     result = await db.execute(
         select(Form).where(
@@ -198,8 +201,11 @@ async def update_form(
         new_schema = update_data.pop("schema_fields")
         new_schema_dict = [f.model_dump() if hasattr(f, 'model_dump') else f for f in new_schema]
 
-        old_keys = {f["key"] for f in form.schema}
-        new_keys = {f["key"] for f in new_schema_dict}
+        if isinstance(form.schema, list):
+            old_keys = {str(f.get("key", "")) for f in form.schema if isinstance(f, dict)}
+        else:
+            old_keys = set()
+        new_keys = {str(f.get("key", "")) for f in new_schema_dict if isinstance(f, dict)}
         added_keys = new_keys - old_keys
 
         # Add new columns to dynamic table

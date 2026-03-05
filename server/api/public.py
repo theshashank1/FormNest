@@ -34,7 +34,7 @@ router = APIRouter(tags=["Public"])
 async def get_public_form(
     form_key: str,
     db: AsyncSession = Depends(get_db_session),
-):
+) -> PublicFormResponse:
     """
     Retrieve a public form's schema and configuration.
 
@@ -62,7 +62,7 @@ async def get_public_form(
         form_key=form.form_key,
         name=form.name,
         form_type=form.form_type,
-        schema=form.schema,
+        form_schema=form.schema,
         steps_config=form.steps_config,
         success_message=form.success_message,
         redirect_url=form.redirect_url,
@@ -80,7 +80,7 @@ async def get_public_form(
 async def get_embed_snippet(
     form_key: str,
     db: AsyncSession = Depends(get_db_session),
-):
+) -> EmbedSnippetResponse:
     """
     Get embed integration code for a form.
 
@@ -172,7 +172,7 @@ async def get_embed_snippet(
 async def render_form_iframe(
     form_key: str,
     db: AsyncSession = Depends(get_db_session),
-):
+) -> HTMLResponse:
     """
     Render a standalone HTML page suitable for iframe embedding.
 
@@ -289,7 +289,7 @@ async def render_form_iframe(
       const el = document.createElement("form");
       el.id = "fn-form";
 
-      form.schema.forEach(field => {{
+      form.form_schema.forEach(field => {{
         const wrapper = document.createElement("div");
         const label = document.createElement("label");
         label.htmlFor = field.key;

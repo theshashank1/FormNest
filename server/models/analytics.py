@@ -5,7 +5,7 @@ FormNest — Analytics Model
 from __future__ import annotations
 
 import uuid
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import DateTime, ForeignKey, Index, Integer, String, Uuid
 from sqlalchemy.dialects.postgresql import JSONB
@@ -35,9 +35,9 @@ class AnalyticsSnapshot(TimestampMixin, Base):
     spam_submissions: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     ghost_leads: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     converted_ghost_leads: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
-    source_breakdown: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
-    device_breakdown: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
-    utm_breakdown: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    source_breakdown: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+    device_breakdown: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+    utm_breakdown: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
 
     # Relationships
     project: Mapped[Project] = relationship("Project", back_populates="analytics_snapshots")

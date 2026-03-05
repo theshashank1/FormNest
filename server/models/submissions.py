@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import Boolean, ForeignKey, Index, SmallInteger, String, Text, Uuid
 from sqlalchemy.dialects.postgresql import INET, JSONB
@@ -56,14 +56,14 @@ class FormSubmissionIndex(Base):
     name: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
     # Snapshot of first 5 fields
-    data_snapshot: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    data_snapshot: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
 
     # Source metadata
     source_url: Mapped[str | None] = mapped_column(Text, nullable=True)
     referrer: Mapped[str | None] = mapped_column(Text, nullable=True)
     device: Mapped[str | None] = mapped_column(String(10), nullable=True)
     ip_address: Mapped[str | None] = mapped_column(INET, nullable=True)
-    utm_data: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    utm_data: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
 
     # A/B variant
     a_b_variant: Mapped[str | None] = mapped_column(String(1), nullable=True)
@@ -111,7 +111,7 @@ class GhostLead(Base):
         ForeignKey("projects.id", ondelete="CASCADE"), nullable=False
     )
     fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
-    partial_data: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    partial_data: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
 
     # Contact info if captured (PII)
     email: Mapped[str | None] = mapped_column(String(255), nullable=True)

@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import (
     Boolean,
@@ -42,11 +42,11 @@ class Webhook(TimestampMixin, Base):
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     url: Mapped[str] = mapped_column(Text, nullable=False)
     secret: Mapped[str] = mapped_column(String(64), nullable=False)
-    events: Mapped[list] = mapped_column(ARRAY(Text), nullable=False)
+    events: Mapped[list[str]] = mapped_column(ARRAY(Text), nullable=False)
     form_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("forms.id", ondelete="SET NULL"), nullable=True
     )
-    headers: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    headers: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     failure_count: Mapped[int] = mapped_column(SmallInteger, default=0, nullable=False)
     auto_disabled_at: Mapped[datetime | None] = mapped_column(nullable=True)

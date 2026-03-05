@@ -32,7 +32,7 @@ async def create_project(
     request: CreateProjectRequest,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db_session),
-):
+) -> ProjectResponse:
     """Create a new project and assign the creator as OWNER."""
     project = Project(
         name=request.name,
@@ -60,7 +60,7 @@ async def create_project(
 async def list_projects(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db_session),
-):
+) -> ProjectListResponse:
     """List all projects the current user has access to."""
     result = await db.execute(
         select(Project)
@@ -83,7 +83,7 @@ async def list_projects(
 @router.get("/{project_id}", response_model=ProjectResponse)
 async def get_project_detail(
     project: Project = Depends(get_project),
-):
+) -> ProjectResponse:
     """Get project details."""
     return ProjectResponse.model_validate(project)
 
@@ -93,7 +93,7 @@ async def update_project(
     request: UpdateProjectRequest,
     project: Project = Depends(get_project),
     db: AsyncSession = Depends(get_db_session),
-):
+) -> ProjectResponse:
     """Update project settings."""
     update_data = request.model_dump(exclude_unset=True)
 
@@ -114,7 +114,7 @@ async def update_project(
 async def get_api_key(
     project: Project = Depends(get_project),
     current_user: User = Depends(get_current_user),
-):
+) -> ApiKeyResponse:
     """
     Retrieve the current project API key.
 
@@ -133,7 +133,7 @@ async def rotate_api_key(
     project: Project = Depends(get_project),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db_session),
-):
+) -> ApiKeyResponse:
     """
     Rotate the project API key.
 

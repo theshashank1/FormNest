@@ -7,7 +7,7 @@ Form definitions and schema version history.
 from __future__ import annotations
 
 import uuid
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import Boolean, ForeignKey, Index, Integer, SmallInteger, String, Text, Uuid
 from sqlalchemy.dialects.postgresql import JSONB
@@ -46,14 +46,14 @@ class Form(TimestampMixin, SoftDeleteMixin, Base):
     )
 
     # Schema definition (JSONB array of field definitions)
-    schema: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    schema: Mapped[list[dict[str, Any]]] = mapped_column(JSONB, nullable=False)
     schema_version: Mapped[int] = mapped_column(SmallInteger, default=1, nullable=False)
 
     # Form type & config
     form_type: Mapped[str] = mapped_column(
         String(20), default=FormType.SINGLE_PAGE.value, nullable=False
     )
-    steps_config: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    steps_config: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
 
     # Dynamic table tracking
     table_name: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
@@ -66,10 +66,10 @@ class Form(TimestampMixin, SoftDeleteMixin, Base):
     # UX customisation
     success_message: Mapped[str | None] = mapped_column(Text, nullable=True)
     redirect_url: Mapped[str | None] = mapped_column(Text, nullable=True)
-    allowed_origins: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    allowed_origins: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
 
     # Spam protection config
-    spam_protection: Mapped[dict] = mapped_column(
+    spam_protection: Mapped[dict[str, Any]] = mapped_column(
         JSONB,
         nullable=False,
         default=lambda: {
@@ -81,11 +81,11 @@ class Form(TimestampMixin, SoftDeleteMixin, Base):
     )
 
     # Styling
-    styling: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    styling: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
 
     # A/B testing (Phase 2)
     a_b_test_enabled: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
-    a_b_variant_schema: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    a_b_variant_schema: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
 
     # Ghost leads
     partial_save_enabled: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
@@ -129,7 +129,7 @@ class FormSchemaVersion(TimestampMixin, Base):
         ForeignKey("forms.id", ondelete="CASCADE"), nullable=False
     )
     version: Mapped[int] = mapped_column(SmallInteger, nullable=False)
-    schema_snapshot: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    schema_snapshot: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
     change_reason: Mapped[str | None] = mapped_column(String(255), nullable=True)
     created_by: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id", ondelete="RESTRICT"), nullable=False

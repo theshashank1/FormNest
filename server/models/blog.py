@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import Boolean, ForeignKey, Index, Integer, SmallInteger, String, Text, Uuid
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB, TSVECTOR
@@ -43,18 +43,18 @@ class BlogPost(TimestampMixin, SoftDeleteMixin, Base):
     # SEO
     seo_title: Mapped[str | None] = mapped_column(String(70), nullable=True)
     seo_description: Mapped[str | None] = mapped_column(String(160), nullable=True)
-    seo_keywords: Mapped[list | None] = mapped_column(ARRAY(Text), nullable=True)
+    seo_keywords: Mapped[list[str] | None] = mapped_column(ARRAY(Text), nullable=True)
     og_title: Mapped[str | None] = mapped_column(String(70), nullable=True)
     og_description: Mapped[str | None] = mapped_column(String(200), nullable=True)
     og_image_url: Mapped[str | None] = mapped_column(Text, nullable=True)
     canonical_url: Mapped[str | None] = mapped_column(Text, nullable=True)
-    schema_markup: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    schema_markup: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
 
     # Stats
     reading_time_minutes: Mapped[int | None] = mapped_column(SmallInteger, nullable=True)
     word_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
     view_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
-    tags: Mapped[list | None] = mapped_column(ARRAY(Text), nullable=True)
+    tags: Mapped[list[str] | None] = mapped_column(ARRAY(Text), nullable=True)
 
     # Programmatic SEO
     is_programmatic: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
@@ -92,7 +92,7 @@ class ProgrammaticSeoTemplate(TimestampMixin, Base):
     content_template: Mapped[str] = mapped_column(Text, nullable=False)
     seo_description_template: Mapped[str | None] = mapped_column(String(200), nullable=True)
     slug_template: Mapped[str] = mapped_column(String(255), nullable=False)
-    schema_template: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    schema_template: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     generated_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     created_by: Mapped[uuid.UUID] = mapped_column(
@@ -120,7 +120,7 @@ class ProgrammaticSeoDataset(Base):
     project_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("projects.id", ondelete="CASCADE"), nullable=False
     )
-    variables: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    variables: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
     status: Mapped[str] = mapped_column(String(20), default="pending", nullable=False)
     blog_post_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("blog_posts.id", ondelete="SET NULL"), nullable=True

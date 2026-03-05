@@ -64,17 +64,17 @@ class SubmissionService:
             raise FormNotActiveError()
 
         # 2. Lookup project
-        result = await self.db.execute(
+        project_result = await self.db.execute(
             select(Project).where(Project.id == form.project_id)
         )
-        project = result.scalar_one_or_none()
+        project = project_result.scalar_one_or_none()
         if not project:
             raise FormNotActiveError("Project not found")
 
         # 3. Origin validation (only when allowed_origins is configured)
         request_origin = metadata.get("_request_origin")
         if request_origin and form.allowed_origins:
-            allowed = form.allowed_origins if isinstance(form.allowed_origins, list) else []
+            allowed: list[str] = form.allowed_origins if isinstance(form.allowed_origins, list) else []
             if allowed and request_origin not in allowed:
                 from server.exceptions import ForbiddenError
                 raise ForbiddenError(
@@ -190,7 +190,7 @@ class SubmissionService:
         self,
         data: dict[str, Any],
         metadata: dict[str, Any],
-        spam_config: dict,
+        spam_config: dict[str, Any],
     ) -> int:
         """
         Calculate spam score (0-100) based on multiple signals.

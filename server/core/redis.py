@@ -54,7 +54,7 @@ async def init_redis() -> None:
         logger.warning("⚠️  REDIS_URL not set — Redis features disabled")
         return
 
-    _redis_pool = aioredis.from_url(
+    _redis_pool = aioredis.from_url(  # type: ignore[no-untyped-call]
         settings.REDIS_URL,
         max_connections=settings.REDIS_POOL_SIZE,
         decode_responses=True,
@@ -96,7 +96,7 @@ async def enqueue(queue_name: str, data: dict[str, Any]) -> None:
     """
     redis = await get_redis()
     payload = json.dumps(data, default=str)
-    await redis.lpush(queue_name, payload)
+    await redis.lpush(queue_name, payload)  # type: ignore[misc]
 
 
 async def dequeue(queue_name: str, timeout: int = 0) -> dict[str, Any] | None:
@@ -110,18 +110,18 @@ async def dequeue(queue_name: str, timeout: int = 0) -> dict[str, Any] | None:
     Returns:
         Parsed dict or None if timeout reached
     """
-    redis = await get_redis()
-    result = await redis.brpop(queue_name, timeout=timeout)
+    redis: Any = await get_redis()
+    result = await redis.brpop([queue_name], timeout=timeout)
     if result:
         _, payload = result
-        return json.loads(payload)
+        return json.loads(payload)  # type: ignore[no-any-return]
     return None
 
 
 async def queue_length(queue_name: str) -> int:
     """Get the number of items in a queue."""
     redis = await get_redis()
-    return await redis.llen(queue_name)
+    return await redis.llen(queue_name)  # type: ignore[misc,no-any-return]  # type: ignore[misc,no-any-return]
 
 
 # =============================================================================
@@ -132,7 +132,7 @@ async def queue_length(queue_name: str) -> int:
 async def cache_get(key: str) -> str | None:
     """Get a cached value."""
     redis = await get_redis()
-    return await redis.get(f"{CACHE_PREFIX}{key}")
+    return await redis.get(f"{CACHE_PREFIX}{key}")  # type: ignore[no-any-return]  # type: ignore[no-any-return]
 
 
 async def cache_set(key: str, value: str, ttl: int = 300) -> None:

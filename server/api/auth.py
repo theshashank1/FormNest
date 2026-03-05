@@ -33,7 +33,7 @@ router = APIRouter(prefix="/auth", tags=["Auth"])
 async def signup(
     request: SignupRequest,
     db: AsyncSession = Depends(get_db_session),
-):
+) -> AuthTokenResponse:
     """Register a new user via Supabase Auth."""
     try:
         supabase = get_supabase_client()
@@ -69,7 +69,7 @@ async def signup(
 async def signin(
     request: SigninRequest,
     db: AsyncSession = Depends(get_db_session),
-):
+) -> AuthTokenResponse:
     """Sign in with email and password via Supabase Auth."""
     try:
         supabase = get_supabase_client()
@@ -96,7 +96,7 @@ async def signin(
 
 
 @router.post("/refresh", response_model=AuthTokenResponse)
-async def refresh_token(request: RefreshTokenRequest):
+async def refresh_token(request: RefreshTokenRequest) -> AuthTokenResponse:
     """Refresh an expired access token."""
     try:
         supabase = get_supabase_client()
@@ -120,6 +120,6 @@ async def refresh_token(request: RefreshTokenRequest):
 @router.get("/me", response_model=UserResponse)
 async def get_me(
     current_user: User = Depends(get_current_user),
-):
+) -> UserResponse:
     """Get current authenticated user profile."""
     return UserResponse.model_validate(current_user)

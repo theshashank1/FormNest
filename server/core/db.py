@@ -18,7 +18,7 @@ logger = logging.getLogger("formnest.db")
 
 
 def _get_database_url() -> str:
-    """Get database URL, ensuring asyncpg driver is used."""
+    """Get database URL, ensuring asyncpg driver is used and stripping incompatible params."""
     url = settings.DATABASE_URL
     if not url:
         raise RuntimeError("DATABASE_URL is not configured")
@@ -27,16 +27,24 @@ def _get_database_url() -> str:
     if url.startswith("postgresql://"):
         url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
 
+    # asyncpg doesn't support sslmode= in the URL; strip it if present
+    if "sslmode=" in url:
+        import re
+        url = re.sub(r'([?&])sslmode=[^&]*(&|$)', r'\1', url)
+        url = url.rstrip('?&')
+
     return url
 
 
 # Async engine — created once on module import
+# Azure PostgreSQL often requires SSL.
 engine = create_async_engine(
     _get_database_url(),
     pool_size=settings.DB_POOL_SIZE,
     max_overflow=settings.DB_MAX_OVERFLOW,
     pool_pre_ping=True,
     echo=settings.DEBUG and settings.ENV == "development",
+    connect_args={"ssl": True},
 )
 
 # Session factory

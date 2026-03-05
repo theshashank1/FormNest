@@ -33,7 +33,7 @@ class FormNestBaseError(Exception):
         super().__init__(self.detail)
 
     def to_response(self) -> dict[str, Any]:
-        response = {
+        response: dict[str, Any] = {
             "error": self.error_code,
             "detail": self.detail,
         }

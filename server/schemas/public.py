@@ -24,7 +24,7 @@ class PublicFormResponse(BaseModel):
     form_key: str
     name: str
     form_type: str
-    schema: list[dict[str, Any]]
+    form_schema: list[dict[str, Any]]
     steps_config: dict[str, Any] | None = None
     success_message: str | None = None
     redirect_url: str | None = None
