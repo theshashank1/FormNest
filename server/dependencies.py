@@ -24,6 +24,40 @@ logger = logging.getLogger("formnest.deps")
 
 
 # =============================================================================
+# API Key Authentication
+# =============================================================================
+
+
+async def get_project_by_api_key(
+    x_api_key: str | None = Header(None, alias="X-API-Key"),
+    db: AsyncSession = Depends(get_db_session),
+) -> Project:
+    """
+    Authenticate a request using a project-scoped API key.
+
+    API keys are prefixed with ``fn_`` and are shown in the project settings
+    dashboard. Pass them via the ``X-API-Key`` request header.
+
+    Raises ``401 Unauthorized`` when no key is provided or the key is invalid.
+    """
+    if not x_api_key:
+        raise UnauthorizedError("Missing X-API-Key header")
+
+    result = await db.execute(
+        select(Project).where(
+            Project.api_key == x_api_key,
+            Project.deleted_at.is_(None),
+        )
+    )
+    project = result.scalar_one_or_none()
+
+    if not project:
+        raise UnauthorizedError("Invalid API key")
+
+    return project
+
+
+# =============================================================================
 # Authentication
 # =============================================================================
 

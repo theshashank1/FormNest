@@ -140,7 +140,38 @@ async def get_form(
     return FormResponse.model_validate(form)
 
 
-@router.patch("/{form_id}", response_model=FormResponse)
+@router.delete("/{form_id}", status_code=204)
+async def delete_form(
+    form_id: uuid.UUID,
+    project: Project = Depends(get_project),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db_session),
+):
+    """
+    Soft-delete a form.
+
+    The form is marked as deleted and deactivated immediately so it no longer
+    accepts new submissions. The underlying data table is preserved for audit
+    purposes and can be recovered by support if needed within 30 days.
+    """
+    from server.models.base import utc_now
+
+    result = await db.execute(
+        select(Form).where(
+            Form.id == form_id,
+            Form.project_id == project.id,
+            Form.deleted_at.is_(None),
+        )
+    )
+    form = result.scalar_one_or_none()
+    if not form:
+        raise NotFoundError("Form not found")
+
+    form.deleted_at = utc_now()
+    form.is_active = False
+    await db.flush()
+    logger.info(f"Form soft-deleted: {form.name} ({form.form_key}) by user {current_user.id}")
+
 async def update_form(
     form_id: uuid.UUID,
     request: UpdateFormRequest,

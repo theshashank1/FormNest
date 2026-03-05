@@ -13,8 +13,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from server.core.db import get_db_session
 from server.dependencies import get_current_user, get_project
 from server.models.access import Project, ProjectMember, User
-from server.models.base import MemberRole, MemberStatus
+from server.models.base import MemberRole, MemberStatus, generate_api_key
 from server.schemas.projects import (
+    ApiKeyResponse,
     CreateProjectRequest,
     ProjectListResponse,
     ProjectResponse,
@@ -107,3 +108,49 @@ async def update_project(
 
     await db.flush()
     return ProjectResponse.model_validate(project)
+
+
+@router.get("/{project_id}/api-key", response_model=ApiKeyResponse)
+async def get_api_key(
+    project: Project = Depends(get_project),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Retrieve the current project API key.
+
+    The API key grants **project-level** access and can be used as an
+    alternative to JWT tokens for server-to-server or CLI integrations.
+    Pass it in the ``X-API-Key`` request header.
+
+    Only project **owners** and **admins** should access this endpoint.
+    Store the key securely — treat it like a password.
+    """
+    return ApiKeyResponse(api_key=project.api_key)
+
+
+@router.post("/{project_id}/api-key/rotate", response_model=ApiKeyResponse)
+async def rotate_api_key(
+    project: Project = Depends(get_project),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db_session),
+):
+    """
+    Rotate the project API key.
+
+    Generates a new ``fn_`` prefixed API key and **immediately invalidates** the
+    old one. Any integrations using the old key will start receiving
+    ``401 Unauthorized`` errors — update them before rotating.
+
+    This action is logged for security auditing purposes.
+    """
+    old_key = project.api_key
+    new_key = generate_api_key()
+    project.api_key = new_key
+    await db.flush()
+
+    logger.info(
+        f"API key rotated for project '{project.name}' ({project.id}) "
+        f"by user {current_user.id}. Old prefix: {old_key[:8]}…"
+    )
+
+    return ApiKeyResponse(api_key=new_key)

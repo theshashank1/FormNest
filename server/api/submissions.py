@@ -15,7 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from server.core.db import get_db_session
 from server.dependencies import get_current_user, get_project
-from server.exceptions import NotFoundError
+from server.exceptions import NotFoundError, RateLimitError
 from server.models.access import Project, User
 from server.models.submissions import FormSubmissionIndex
 from server.schemas.submissions import (
@@ -48,15 +48,47 @@ async def submit_form(
     Public form submission endpoint.
 
     Accepts submissions from any website embedding the FormNest widget.
-    No authentication required — form_key is the only identifier.
+    No authentication required — ``form_key`` is the only identifier.
 
-    Rate limited: 5 submissions/minute per IP per form_key.
+    **Rate limit**: 5 submissions per minute per IP address per form key.
+    Exceeding this returns ``429 Too Many Requests``.
+
+    **Origin check**: When a form has ``allowed_origins`` configured, the
+    ``Origin`` request header is validated against that list. Requests from
+    unlisted origins receive ``403 Forbidden``.
+
+    Honeypot and timing-based spam detection runs on every submission.
+    Flagged submissions are stored but hidden from the dashboard by default.
     """
-    # Get client IP
+    # Resolve client IP (honour reverse-proxy headers)
     client_ip = http_request.client.host if http_request.client else "0.0.0.0"
     forwarded = http_request.headers.get("X-Forwarded-For")
     if forwarded:
         client_ip = forwarded.split(",")[0].strip()
+
+    # Redis-based rate limiting (best-effort — skipped when Redis is unavailable)
+    try:
+        from server.core.redis import check_rate_limit
+        rate_key = f"submit:{client_ip}:{form_key}"
+        allowed, count = await check_rate_limit(rate_key, limit=5, window_seconds=60)
+        if not allowed:
+            raise RateLimitError(
+                f"Rate limit exceeded. Maximum 5 submissions per minute. "
+                f"Current count: {count}."
+            )
+    except RateLimitError:
+        raise
+    except Exception:
+        pass  # Redis unavailable — degrade gracefully
+
+    # Origin validation — enforced only when form.allowed_origins is set
+    origin = http_request.headers.get("Origin")
+    if origin:
+        # We do the origin check inside SubmissionService where we have form data,
+        # so we pass the origin through metadata.
+        if request.metadata is None:
+            request = request.model_copy(update={"metadata": {}})
+        request.metadata["_request_origin"] = origin
 
     # Process submission
     service = SubmissionService(db)

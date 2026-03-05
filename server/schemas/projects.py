@@ -48,3 +48,8 @@ class ProjectResponse(BaseModel):
 class ProjectListResponse(BaseModel):
     projects: list[ProjectResponse]
     total: int
+
+
+class ApiKeyResponse(BaseModel):
+    """Response containing the project API key."""
+    api_key: str
