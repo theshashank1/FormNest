@@ -2,6 +2,9 @@
 FormNest — Submission API Routes
 
 Public submission endpoint + authenticated dashboard endpoints.
+The public ``/submit/{form_key}`` route lives in the public router.
+The authenticated list/detail routes are registered separately under
+the ``/api/v1`` prefix via ``submissions_auth_router``.
 """
 
 from __future__ import annotations
@@ -29,7 +32,14 @@ from server.services.submission_service import SubmissionService
 
 logger = logging.getLogger("formnest.api.submissions")
 
+# Public router — no auth required (mounted without /api/v1 prefix)
 router = APIRouter(tags=["Submissions"])
+
+# Authenticated router — mounted under /api/v1 via api_router
+submissions_auth_router = APIRouter(
+    prefix="/projects/{project_id}/forms/{form_id}/submissions",
+    tags=["Submissions"],
+)
 
 
 # =============================================================================
@@ -111,10 +121,7 @@ async def submit_form(
 # =============================================================================
 
 
-@router.get(
-    "/api/v1/projects/{project_id}/forms/{form_id}/submissions",
-    response_model=SubmissionListResponse,
-)
+@submissions_auth_router.get("", response_model=SubmissionListResponse)
 async def list_submissions(
     project_id: uuid.UUID,
     form_id: uuid.UUID,
@@ -164,10 +171,7 @@ async def list_submissions(
     )
 
 
-@router.get(
-    "/api/v1/projects/{project_id}/forms/{form_id}/submissions/{submission_id}",
-    response_model=SubmissionDetailResponse,
-)
+@submissions_auth_router.get("/{submission_id}", response_model=SubmissionDetailResponse)
 async def get_submission_detail(
     project_id: uuid.UUID,
     form_id: uuid.UUID,
@@ -191,11 +195,8 @@ async def get_submission_detail(
     # Mark as reviewed if first time
     if not submission.reviewed_at:
         from datetime import datetime, timezone
-        
-        def utc_now() -> datetime:
-            return datetime.now(timezone.utc)
-            
-        submission.reviewed_at = utc_now()
+
+        submission.reviewed_at = datetime.now(timezone.utc)
         await db.flush()
 
     # Fetch full data from dynamic table

@@ -76,6 +76,9 @@ class Settings(BaseSettings):
     # Database pool
     DB_POOL_SIZE: int = 5
     DB_MAX_OVERFLOW: int = 10
+    # Set to True for managed cloud databases (Neon, Supabase, Azure, etc.)
+    # Leave False for local development with a plain PostgreSQL container.
+    DB_REQUIRE_SSL: bool = False
 
     # --- Redis ---
     REDIS_URL: str | None = None
